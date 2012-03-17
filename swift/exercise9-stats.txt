@@ -1,0 +1,60 @@
+# from http://swift.openstack.org/overview_stats.html
+
+##################
+# NOT YET COMPLETE
+##################
+
+# first, add a stats user.  This is where the stats data will be accumulated
+swauth-add-user -K swauthkey -A https://localhost:8080/auth/ -a systemstats root secret
+
+# Find the actual id associated with the account
+swauth-list -A https://localhost:8080/auth/ -K swauthkey systemstats
+
+# take note of the account_id
+export ACCOUNT_ID=<account_id noted above>
+
+# Make a log-processor.conf 
+cat > ~/log-processor.conf <<EOF
+[log-processor]
+swift_account = ${ACCOUNT_ID}
+user = root
+
+[log-processor-access]
+swift_account = ${ACCOUNT_ID}
+container_name = log_data
+log_dir = /var/log/swift/hourly/
+source_filename_format = %Y%m%d%H
+class_path = swift.stats.access_processor.AccessLogProcessor
+user = root
+
+[log-processor-stats]
+swift_account = ${ACCOUNT_ID}
+container_name = account_stats
+log_dir = /var/log/swift/stats/
+source_filename_format = %Y%m%d%H_*
+class_path = swift.stats.stats_processor.StatsLogProcessor
+account_server_conf = /etc/swift/account-server.conf
+user = root
+EOF
+
+# push that config file to all nodes
+dsh -g all cp ~/log-processor.conf /etc/swift
+
+# make sure wget is install
+sudo apt-get install -y wget
+
+# download all the files that *should* be in the official packages, but aren't :(
+mkdir ~/stats
+cd ~/stats
+wget --no-check-certificate https://raw.github.com/rpedde/swift-training-kick/master/scripts/swift-account-stats-logger
+wget --no-check-certificate https://raw.github.com/rpedde/swift-training-kick/master/scripts/swift-log-stats-collector
+wget --no-check-certificate https://raw.github.com/rpedde/swift-training-kick/master/scripts/swift-log-uploader
+
+# make them executable
+chmod +x ~/stats/*
+
+# copy these to all the nodes
+cd
+dsh -g all sudo cp ~/stats/* /usr/bin
+
+# 

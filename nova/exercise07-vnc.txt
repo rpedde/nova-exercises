@@ -1,0 +1,32 @@
+### Caution: Don't try to run this as script.  Requires manual modifications.  
+
+# STEP 1
+# Update nova.conf with these settings. REMEMBER - use your Lab IP Address
+cat >> /etc/nova/nova.conf << ENDCONF 
+--vncproxy_url=http://192.168.2.19:6080
+--vncproxy_wwwroot=/var/lib/nova/noVNC
+--vncproxy_host=192.168.2.19
+ENDCONF
+
+# STEP 2
+# Restart Nova Services
+sudo restart libvirt-bin; sudo restart nova-network; sudo restart nova-compute; sudo restart nova-api; sudo restart nova-objectstore; sudo restart nova-scheduler;
+
+# STEP 3
+# Start nova-vncproxy as root
+sudo /usr/bin/nova-vncproxy &
+
+# STEP 4
+# Make sure there are 6 Nova processes running including nova-vncproxy
+pgrep -l nova
+
+# STEP 5
+# Launch an instance with the Dashboard using your keypair from exercise 6
+
+# STEP 6
+# Using an instance connected to your Keypair, shell in and reset the password for the ubuntu user
+passwd ubuntu
+
+# STEP 7
+# From the Dashboard access VNC Console of the same instance using the ubuntu user
+

@@ -1,0 +1,224 @@
+#!/bin/bash
+
+set -x
+set -e
+
+## These repos are already installed, so don't need
+## to be manually set up
+
+#sudo apt-get install python-software-properties
+#sudo add-apt-repository ppa:swift-core/release
+
+## ---------------------------------------------
+
+# First, we'll set up the proxy node
+sudo apt-get update
+sudo apt-get install -y --force-yes swift
+sudo apt-get install -y --force-yes python-swauth swauth-doc
+
+sudo mkdir /etc/swift
+sudo chown swift: /etc/swift
+
+cat > /etc/swift/swift.conf <<EOF
+[swift-hash]
+swift_hash_path_suffix = SECRET_KEY
+EOF
+
+# We'll need the swift-proxy package, as well
+# as memcache (to cache auth tokens)
+sudo apt-get install -y --force-yes swift-proxy memcached
+
+# We'll fix memcache to listen on all interfaces
+sudo sed -i /etc/memcached.conf -e 's/127.0.0.1/0.0.0.0/g'
+sudo service memcached restart
+
+# Build the proxy config file
+cat >/etc/swift/proxy-server.conf <<EOF
+[DEFAULT]
+#cert_file = /etc/swift/cert.crt
+#key_file = /etc/swift/cert.key
+bind_port = 8080
+workers = 8
+user = swift
+
+[pipeline:main]
+pipeline = healthcheck cache swauth proxy-server
+
+[app:proxy-server]
+use = egg:swift#proxy
+allow_account_management = true
+
+[filter:swauth]
+use = egg:swauth#swauth
+default_swift_cluster = local#http://localhost:8080/v1
+# Highly recommended to change this key to something else!
+super_admin_key = swauthkey
+
+[filter:healthcheck]
+use = egg:swift#healthcheck
+
+[filter:cache]
+use = egg:swift#memcache
+memcache_servers = localhost:11211
+EOF
+
+## build the rings
+set +e
+
+cd /etc/swift
+swift-ring-builder account.builder create 18 3 1
+swift-ring-builder account.builder add z2-192.168.2.11:6002/sda6 1000
+swift-ring-builder account.builder add z3-192.168.2.12:6002/sda6 1000
+swift-ring-builder account.builder add z4-192.168.2.13:6002/sda6 1000
+swift-ring-builder account.builder add z5-192.168.2.14:6002/sda6 1000
+swift-ring-builder account.builder add z6-192.168.2.15:6002/sda6 1000
+
+swift-ring-builder container.builder create 18 3 1
+swift-ring-builder container.builder add z2-192.168.2.11:6001/sda6 1000
+swift-ring-builder container.builder add z3-192.168.2.12:6001/sda6 1000
+swift-ring-builder container.builder add z4-192.168.2.13:6001/sda6 1000
+swift-ring-builder container.builder add z5-192.168.2.14:6001/sda6 1000
+swift-ring-builder container.builder add z6-192.168.2.15:6001/sda6 1000
+
+swift-ring-builder object.builder create 18 3 1
+swift-ring-builder object.builder add z2-192.168.2.11:6000/sda6 1000
+swift-ring-builder object.builder add z3-192.168.2.12:6000/sda6 1000
+swift-ring-builder object.builder add z4-192.168.2.13:6000/sda6 1000
+swift-ring-builder object.builder add z5-192.168.2.14:6000/sda6 1000
+swift-ring-builder object.builder add z6-192.168.2.15:6000/sda6 1000
+
+
+swift-ring-builder account.builder rebalance
+swift-ring-builder container.builder rebalance
+swift-ring-builder object.builder rebalance
+
+set -e
+
+## copy the rings from a single host
+#scp swift@192.168.2.11:/etc/swift/*.gz /etc/swift
+## copy the builder files as well
+#scp swift@192.168.2.11:/etc/swift/*builder* /etc/swift
+
+# start the proxy server
+sudo swift-init proxy start
+
+# Install software for storage nodes
+sudo apt-get install -y --force-yes swift-account swift-container swift-object xfsprogs parted
+
+#sudo parted /dev/sda2 mklabel msdos yes
+#sudo parted /dev/sda2 mkpart primary xfs 1M 100% yes
+
+sudo mkfs.xfs -f -i size=1024 /dev/sda6
+
+# mount the drives, and set them up to be mounted in /etc/fstab
+sudo mkdir -p /srv/node/sda6
+sudo chown -R swift /srv/node
+echo "/dev/sda6 /srv/node/sda6 xfs noatime,nodiratime,nobarrier,logbufs=8 0 0" | sudo tee -a /etc/fstab
+sudo mount /srv/node/sda6
+
+# verify it's mounted on all the storage nodes
+mount | grep sda6
+
+# fix up permissions
+sudo chown -R swift: /srv/node
+
+# set up rsync for object/acct/etc synchronization
+( cat | sudo tee /etc/rsyncd.conf ) <<EOF
+uid = swift
+gid = nogroup
+
+log file = /var/log/rsyncd.log
+pid file = /var/run/rsyncd.pid
+address = 0.0.0.0
+
+[account]
+max connections = 2
+path = /srv/node/
+read only = false
+lock file = /var/lock/account.lock
+
+[container]
+max connections = 2
+path = /srv/node/
+read only = false
+lock file = /var/lock/container.lock
+
+[object]
+max connections = 2
+path = /srv/node/
+read only = false
+lock file = /var/lock/object.lock
+EOF
+
+sudo sed -i /etc/default/rsync -e 's/RSYNC_ENABLE=false/RSYNC_ENABLE=true/'
+sudo service rsync start
+
+# verify rsync is runing
+ps auxw | grep rsyn[c]
+
+# create config files for account server, container server, and object server
+# cat > /etc/swift/account-server.conf <<EOF
+# [DEFAULT]
+# bind_ip = 0.0.0.0
+# workers = 2
+
+# [pipeline:main]
+# pipeline = account-server
+
+# [app:account-server]
+# use = egg:swift#account
+
+# [account-replicator]
+
+# [account-auditor]
+
+# [account-reaper]
+# EOF
+
+# cat > /etc/swift/container-server.conf <<EOF
+# [DEFAULT]
+# bind_ip = 0.0.0.0
+# workers = 2
+
+# [pipeline:main]
+# pipeline = container-server
+
+# [app:container-server]
+# use = egg:swift#container
+
+# [container-replicator]
+
+# [container-updater]
+
+# [container-auditor]
+# EOF
+
+# cat > /etc/swift/object-server.conf <<EOF
+# [DEFAULT]
+# bind_ip = 0.0.0.0
+# workers = 2
+
+# [pipeline:main]
+# pipeline = object-server
+
+# [app:object-server]
+# use = egg:swift#object
+
+# [object-replicator]
+
+# [object-updater]
+
+# [object-auditor]
+# EOF
+
+# and start the storage nodes
+sudo swift-init all start
+
+# initialize the auth system
+# We'll do this from a single node
+#swauth-prep -A http://localhost:8080/auth/ -K swauthkey
+
+# the storage node is now set up.  Next steps:  create users and test
+# We'll do that as the next exercise.
+
+

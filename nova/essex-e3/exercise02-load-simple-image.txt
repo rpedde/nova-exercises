@@ -1,0 +1,24 @@
+#! /bin/bash
+
+# Install Glance
+sudo apt-get install -y --force-yes glance
+
+# set up glance to use the keystone pipeline
+echo -e "\n[paste_deploy]\nflavor=keystone\n" | sudo tee -a /etc/glance/glance-api.conf
+echo -e "\n[paste_deploy]\nflavor=keystone\n" | sudo tee -a /etc/glance/glance-registry.conf
+
+sudo service glance-api restart
+sudo service glance-registry restart
+
+# Download a simple image
+wget http://192.168.2.1/training/nova/maverick.tar.gz
+
+# expand the image
+tar -xzvf maverick.tar.gz
+
+#register the image
+#nova-manage image all_register --image=ami-maverick/image --kernel=aki-maverick/image --ram=ari-maverick/image --owner=myuser --name=simpleImage --public=T 
+
+kid=$(glance -A 999888777666 add name="maverick-kernel" disk_format=aki container_format=aki < aki-maverick/image | cut -d: -f2 | sed 's/ //')
+rid=$(glance -A 999888777666 add name="maverick-initrd" disk_format=ari container_format=ari < ari-maverick/image | cut -d: -f2 | sed 's/ //')
+glance -A 999888777666 add name="maverick" disk_format=ami container_format=ami kernel_id=${kid} ramdisk_id=${rid} < ami-maverick/image

@@ -1,0 +1,20 @@
+# add an admin user for a new account
+swauth-add-user -A http://localhost:8080/auth/ -K swauthkey -a groupX test1 test1pass
+
+# add a non-admin account
+swauth-add-user -A http://localhost:8080/auth/ -K swauthkey groupX test2 test2pass
+
+# check that swauth now knows about the user and account
+swauth-list -A http://localhost:8080/auth/ -K swauthkey groupX
+
+# verify that the user works...
+sudo apt-get install -y curl
+curl -k -v -H 'X-Storage-User: groupX:test1' -H 'X-Storage-Pass:test1pass' http://localhost:8080/auth/v1.0
+
+# pull the X-Auth-Token and X-Storage-URL out
+curl -k -v -H 'X-Auth-Token: <token-from-x-auth-token-above>' <url-from-x-storage-url-above>
+
+# This is the same as the swift command "stat"
+swift -A http://localhost:8080/auth/v1.0 -U groupX:test1 -K test1pass stat
+
+

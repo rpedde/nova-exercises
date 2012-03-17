@@ -1,0 +1,42 @@
+#! /bin/bash
+
+################################################
+# Install packages and dependencies
+################################################
+sudo apt-get install -y libapache2-mod-wsgi
+sudo apt-get install -y --force-yes django-openstack
+sudo apt-get install -y --force-yes openstack-dashboard
+
+################################################
+# Set up the Dashboard configuration file
+################################################
+cd /var/lib/dash/local
+sudo cp local_settings.py.example local_settings.py
+sudo mkdir /var/lib/dash/.blackhole
+
+################################################
+# Set up the Nova configuration file
+################################################
+cat >> /etc/nova/nova.conf << ENDCONF 
+--osapi_extension_path=/var/lib/nova/extensions
+ENDCONF
+
+################################################
+# Warm up the Database
+################################################
+cd /var/lib/dash/
+sudo PYTHONPATH=/var/lib/dash/ python dashboard/manage.py syncdb
+sudo chown -R www-data /var/lib/dash/local/
+
+################################################
+# Configure Apache
+################################################
+sudo a2enmod rewrite
+sudo a2dissite default
+sudo a2ensite dash
+
+################################################
+# Restart Services
+################################################
+sudo restart libvirt-bin; sudo restart nova-network; sudo restart nova-compute; sudo restart nova-api; sudo restart nova-objectstore; sudo restart nova-scheduler
+sudo service apache2 restart

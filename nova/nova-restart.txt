@@ -1,0 +1,7 @@
+#! /bin/bash
+
+sudo restart nova-network || sudo start nova-network
+sudo restart nova-scheduler || sudo start nova-scheduler
+sudo restart nova-api || sudo start nova-api
+sudo restart nova-objectstore || sudo start nova-objectstore
+sudo restart nova-compute || sudo start nova-compute

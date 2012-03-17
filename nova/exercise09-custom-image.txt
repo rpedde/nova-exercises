@@ -1,0 +1,84 @@
+
+
+# take image from current format and convert to raw format
+qemu-img convert <source-file> <destination-file>
+qemu-img convert my.orig my.raw
+
+# associate the raw image with a loop back device
+sudo losetup -vf my.raw 
+
+# view partition tables
+sudo parted /dev/loop0 print 
+
+# create device maps from the partition tables
+sudo apt-get install -y kpartx
+sudo kpartx -a /dev/loop0
+ls /dev/mapper/
+
+sudo apt-get install -y lvm2
+# Scan all supported LVM block devices in the system for physical volumes
+sudo pvscan 
+# display attributes of volume groups
+sudo vgdisplay
+# display attributes of a logical volume
+sudo lvdisplay
+# activate the logical volume making it available for use
+sudo lvchange -ay /dev/ubuntu/root
+# mount the volume
+sudo mkdir /mnt/nova
+sudo mount /dev/ubuntu/root /mnt/nova
+# change root
+sudo chroot /mnt/nova
+
+################################################
+# Optional Image Housekeeping
+################################################
+apt-get install openssh-server
+apt-get install cloud-init
+# May want to configure DNS
+cat /etc/resolv.conf
+
+# May want to update package repos
+cat /etc/apt/sources.list
+
+# May want to configure networking
+vim /etc/network/interfaces
+## iface eth0 inet dhcp
+
+# May want to add/edit users
+cat /etc/password
+## adduser || passwd root
+## /etc/ssh/sshd_config => PermitRootLogin yes
+	
+cat fstab #make sure there are no /dev real devices in the fstab
+# May want to clear the local repo cache
+apt-get clean
+# May want to clean up the tmp dirs
+clean tmp dir
+clean var/tmp
+ls
+
+# dd zeros into partition
+dd if=/dev/zero of=/tmp/zero bs=1024k
+rm /tmp/zero
+################################################
+# End Optional Housekeeping
+################################################
+
+# Exit chroot
+exit
+# unmount the volume
+sudo umount /mnt/nova
+# deactivate the local volume
+sudo lvchange -an /dev/ubuntu/root
+# delete partition mappings
+sudo kpartx -d /dev/loop0
+ls /dev/mapper
+# detach from the loop device
+sudo losetup -d /dev/loop0
+
+# Convert raw image to qcow2, using -c for compression (removing the zeros)
+qemu-img convert -c -O qcow2 my.raw my.qcow2
+
+# Take a look at size of the modified image
+ls -lahs

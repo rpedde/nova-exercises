@@ -1,0 +1,48 @@
+# Shutdown any running instances
+nova list
+nova delete <id>
+
+# Shutdown unnecessary services on Compute Nodes
+sudo stop nova-api; sudo stop nova-scheduler; sudo stop nova-network; sudo stop nova-objectstore; sudo stop nova-compute; sudo stop nova-vncproxy; 
+ps -aux | grep nova-vncproxy
+sudo kill <process id>
+
+# We could remove these packages since they aren't needed on the Compute Nodes
+# sudo apt-get remove nova-vncproxy nova-objectstore nova-api nova-scheduler rabbitmq-server openstack-dashboard
+
+
+# Modify the nova.conf
+cat >> /etc/nova/nova.conf << ENDCONF
+--my_ip=192.168.2.19
+--sql_connection=mysql://nova:nova@192.168.2.20/nova
+--rabbit_host=192.168.2.20
+--glance_api_servers=192.168.2.20:9292
+--ec2_dmz_host=192.168.2.20
+--ec2_host=192.168.2.20
+ENDCONF
+
+
+# Kill any Zombie VM's
+sudo virsh list --all
+sudo virsh shutdown <id>
+sudo virsh destroy <id>
+sudo virsh undefine <id>
+
+# ON THE CONTROLLER = Set up Network in HA Mode with multi_host flag
+nova-manage network modify --disassociate-project --network=10.0.0.0/24
+nova-manage network delete --network=10.0.0.0/24
+nova-manage network create --label=private --fixed_range_v4=10.0.0.0/24 --num_networks=1 --network_size=256 --bridge_interface=eth0 --multi_host=T
+nova-manage network modify --project=MyTenant --network=10.0.0.0/24
+
+# ON THE COMPUTE NODES
+sudo start nova-network
+sudo start nova-compute
+
+# Make sure everyone comes up on the correct VLan
+
+
+
+sudo vconfig rem vlan100
+sudo ifconfig br100 down
+sudo brctl delbr br100
+sudo rm -rf /var/lib/nova/instances/instance-0000000*

@@ -1,0 +1,28 @@
+# can the test2 user download the teswift file?
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test2 -K test2pass download testcontainer test.txt -o -
+
+# What are the current ACLs on the container 'testcontainer'
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass stat testcontainer
+
+# What does imply about default (empty) acls?
+
+# add an acl to allow test2 to read the file
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass post testcontainer -r ".r:*"
+
+# view the ACLs now, and verify it was applied
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass stat testcontainer
+
+# Can the test2 user view the teswift file now?
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test2 -K test2pass download testcontainer test.txt -o -
+
+# Can the test2 user write a new file to the container?
+cp test.txt test2.txt
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test2 -K test2pass upload testcontainer test2.txt
+
+# set the acls so that the test2 user can write to it (not world writable)
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass post testcontainer -w "groupX:test2"
+
+# Now can the test2 user write to the file?
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test2 -K test2pass upload testcontainer test2.txt
+
+

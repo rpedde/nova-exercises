@@ -1,0 +1,33 @@
+#! /bin/bash
+
+
+# Install packages and dependencies
+sudo apt-get update
+sudo apt-get install -y --force-yes python-software-properties rabbitmq-server python-greenlet python-mysqldb euca2ools unzip bridge-utils
+sudo apt-get install -y --force-yes nova-common nova-doc python-nova nova-api nova-network nova-objectstore nova-scheduler nova-compute
+sudo apt-get install -y --force-yes nova-novnc nova-vncproxy
+
+# Set up user and project
+nova-manage db sync
+nova-manage user admin myuser
+
+# Set up networking
+sudo brctl addbr br100
+sudo ifconfig br100 up
+sudo nova-manage network create --label=private --fixed_range_v4=10.0.0.0/24 --num_networks=1 --network_size=256 --bridge_interface=br100
+sudo killall dnsmasq 
+sudo service nova-network restart
+
+# Set up user credentials
+mkdir ~/creds
+/usr/bin/python /usr/bin/nova-manage project zipfile MyTenant myuser ~/creds/novacreds.zip
+unzip ~/creds/novacreds.zip -d ~/creds/
+cat ~/creds/novarc >> ~/.bashrc
+
+
+# Post Installation Steps
+#============= Source your updated bashrc ===================#
+#. ~/.bashrc
+
+#====== Make sure all 5 Nova services are running ===========#
+# pgrep -l nova

@@ -1,0 +1,50 @@
+#! /bin/bash
+################################################
+# Clean Up
+# Shutdown any instances you may have running
+################################################
+# nova list
+# nova delete <id>
+
+################################################
+# Set up MySQL DB
+################################################
+MYSQL_PASS=password
+
+cat << MYSQL_PRESEED | sudo debconf-set-selections
+mysql-server-5.1 mysql-server/root_password password $MYSQL_PASS
+mysql-server-5.1 mysql-server/root_password_again password $MYSQL_PASS
+mysql-server-5.1 mysql-server/start_on_boot boolean true
+MYSQL_PRESEED
+
+sudo apt-get install -y mysql-server
+sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/my.cnf
+sudo service mysql restart
+
+sudo mysql -uroot -ppassword -e 'CREATE DATABASE nova;'
+sudo mysql -uroot -ppassword -e "GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' WITH GRANT OPTION;"
+sudo mysql -uroot -ppassword -e "SET PASSWORD FOR 'nova'@'%' = PASSWORD('nova');"
+
+################################################
+# Configure Nova to use the MySQL DB
+################################################
+cat >> /etc/nova/nova.conf << ENDCONF 
+--sql_connection=mysql://nova:nova@localhost/nova
+ENDCONF
+
+################################################
+# Restart the Nova Services
+################################################
+sudo restart nova-network; sudo restart nova-api; sudo restart nova-scheduler; sudo restart nova-objectstore; sudo restart nova-compute;
+
+################################################
+# Warm up the DB
+################################################
+sudo nova-manage db sync
+
+################################################
+# Recreate the Network
+################################################
+sudo nova-manage network create --label=private --fixed_range_v4=10.0.0.0/24 --num_networks=1 --network_size=256 --bridge_interface=br100
+sudo killall dnsmasq 
+sudo restart nova-network

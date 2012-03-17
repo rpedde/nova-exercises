@@ -1,0 +1,28 @@
+# Problem? "You must provide a username, eithervia --username or via env[NOVA_USERNAME]"
+# Solution = Make sure you have sourced your openrc file
+# by using the following command
+# . ~/openrc
+
+# Find the image you want to boot:
+nova image-list
+
+# Find the flavor/size of the instance you want to boot
+nova flavor-list
+
+image=$(nova image-list | grep maverick[^-] | awk '{ print $2 }')
+
+# Use the Nova CLI to boot an instance based on our SimpleImage
+nova boot --flavor 1 --image ${image} myFirstInstance
+
+# List all the instances paying attention to their Status
+nova list
+
+# Once the instance is active, ping it's ip Address
+#ping 10.0.0.3 # Replace with the IP of the instance
+
+# Use the Nova CLI to delete an instance
+#nova delete 1
+
+# Listing the instance should show that our instance has been deleted
+nova list
+

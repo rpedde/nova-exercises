@@ -1,0 +1,28 @@
+#! /bin/bash
+
+# install apache2 + wsgi and the openstack dashboard
+sudo apt-get install -y libapache2-mod-wsgi openstack-dashboard --force-yes
+
+# enable mod_rewrite and mod_wsgi
+sudo a2enmod rewrite
+sudo a2enmod wsgi
+
+# turn on the dashboard config, disable the default
+sudo a2ensite dash
+sudo a2dissite default
+
+sudo cp /var/lib/dash/local/local_settings.py.example /var/lib/dash/local/local_settings.py
+
+# set up scaffolding
+cd /var/lib/dash
+sudo PYTHONPATH=/var/lib/dash/ python dashboard/manage.py syncdb
+sudo chown -R www-data: /var/lib/dash 
+
+sudo mkdir /var/lib/dash/.blackhole
+
+# restart apache
+sudo service apache2 restart
+
+# make nova policy.json match our keystone tenants
+sudo sed -i /etc/nova/policy.json -e "s/role:admin/role:Admin/"
+sudo service nova-api restart

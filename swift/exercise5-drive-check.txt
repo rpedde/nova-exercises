@@ -1,0 +1,13 @@
+# make the config file
+cat > /etc/swift/drive-audit.conf <<EOF
+[drive-audit]
+device_dir = /srv/node
+log_facility = LOG_LOCAL0
+log_level = INFO
+minutes = 60
+error_limit = 2
+EOF
+
+# make a cron.d job
+echo "15 * * * * root /usr/bin/swift-drive-audit /etc/swift/drive-audit.conf" | sudo tee /etc/cron.d/swift-drive-audit
+

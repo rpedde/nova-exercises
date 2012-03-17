@@ -1,0 +1,23 @@
+# show stats (containers, objects, etc) for test1 user
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass stat
+
+# create a container 
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass post testcontainer
+
+# verify the container exists
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass list
+
+# upload a file to the container
+cat > test.txt <<EOF
+This is a teswift file.
+EOF
+
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass upload testcontainer test.txt
+
+# view the file
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test1 -K test1pass download testcontainer test.txt -o -
+
+# can we view the file as test2?
+swift -A http://localhost:8080/auth/v1.0/ -U groupX:test2 -K test2pass download testcontainer test.txt -o -
+
+

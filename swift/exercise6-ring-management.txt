@@ -1,0 +1,60 @@
+# find the account id for a given account
+swauth-list -A http://localhost:8080/auth/ -K swauthkey testaccount
+
+# Find location of files for a given object
+swift-get-nodes /etc/swift/object.ring.gz <id> testcontainer test.txt
+
+# Use the given ssh commands to observe the file data on non-handoff nodes
+ssh <primarynode> "ls -lah /srv/node/sdb1/objects/6075/<.....>"
+
+# observe that the file is *NOT* there on a handoff node
+ssh <handoffnode> "ls -lah /srv/node/sdb1/objects/<.....>"
+
+# unmount a drive on a non-handoff node
+ssh <host> sudo umount /srv/node/sdb1
+
+# wait... wait... wait...
+
+# observe that the file has moved (by itself!) to the handoff node
+ssh <handoffnode> "ls -lah /srv/node/sdb1/objects/<.....>"
+
+# remount the drive
+ssh <host> sudo mount /srv/node/sdb1
+
+# wait... wait... wait...
+
+# observe that the file has removed itself from the handoff node
+ssh <handoffnode> "ls -lah /srv/node/sdb1/objects/<.....>"
+
+#
+# Now, let's actively pull a drive out of the ring
+#
+
+# show all devices
+cd /etc/swift
+swift-ring-builder object.builder
+
+# find a non-handoff device
+swift-ring-builder object.builder search <ip>/sdb1
+
+# if that's the right device, remove it
+swift-ring-builder object.builder remove <ip>/sda6
+swift-ring-builder account.builder remove <ip>/sda6
+swift-ring-builder container.builder remove <ip>/sda6
+
+# rebalance the rings
+swift-ring-builder object.builder rebalance
+swift-ring-builder account.builder rebalance
+swift-ring-builder container.builder rebalance
+
+# check what moved
+swift-get-nodes /etc/swift/object.ring.gz <id> testcontainer test.txt
+
+# push them to the storage nodes
+# scp 192.168.2.11:/etc/swift/*gz /etc/swift
+
+# wait... wait... wait...
+
+# watch that it moved
+ssh <node> "ls -lah /srv/node/sdb1/objects/<.....>"
+

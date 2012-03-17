@@ -1,0 +1,67 @@
+#! /bin/bash
+
+################################################
+# Install packages and dependencies
+################################################
+#sudo apt-get install -y python-pip python-dev libxslt-dev sqlite libsqlite3-dev libldap2-dev libsasl2-dev python-lxml
+sudo apt-get -y --force-yes install keystone
+
+################################################
+# Tenants, Users, Roles and Long Live Tokens
+################################################
+sudo keystone-manage tenant add MyTenant
+sudo keystone-manage user add myuser mypassword MyTenant
+sudo keystone-manage token add 999888777666 myuser MyTenant 2015-01-01T00:00
+sudo keystone-manage role add Admin
+sudo keystone-manage role grant Admin myuser
+sudo keystone-manage role grant Admin myuser MyTenant
+sudo keystone-manage role add Member
+sudo keystone-manage role grant Member myuser MyTenant
+
+################################################
+# Service Catalog
+################################################
+# keystone-manage endpointTemplates add 'region' 'service' 'publicURL' 'adminURL' 'internalURL' 'enabled' 'global'
+sudo keystone-manage service add nova compute
+sudo keystone-manage endpointTemplates add RegionOne nova http://127.0.0.1:8774/v1.1/%tenant_id% http://127.0.0.1:8774/v1.1/%tenant_id% http://127.0.0.1:8774/v1.1/%tenant_id% 1 1
+sudo keystone-manage service add glance image
+sudo keystone-manage endpointTemplates add RegionOne glance http://127.0.0.1:9292/v1 http://127.0.0.1:9292/v1 http://127.0.0.1:9292/v1 1 1
+sudo keystone-manage service add keystone identity
+sudo keystone-manage endpointTemplates add RegionOne keystone http://127.0.0.1:5000/v2.0 http://127.0.0.1:35357/v2.0 http://127.0.0.1:5000/v2.0 1 1
+
+# add ec2 credentials
+sudo keystone-manage credentials add myuser EC2 myuser mypassword MyTenant
+
+cat > openrc <<EOF
+export USERNAME=myuser
+export PASSWORD=mypassword
+export TENANT=MyTenant
+export REGION=RegionOne
+
+# NEW STYLE CREDENTIALS
+export OS_AUTH_USER=\${USERNAME}
+export OS_AUTH_KEY=\${PASSWORD}
+export OS_AUTH_TENANT=\${TENANT}
+export OS_AUTH_URL=http://127.0.0.1:5000/v2.0/
+export OS_AUTH_STRATEGY=keystone
+
+# LEGACY STYLE CREDENTIALS
+export NOVA_USERNAME=\${USERNAME}
+export NOVA_PROJECT_ID=\${TENANT}
+export NOVA_PASSWORD=\${PASSWORD}
+export NOVA_API_KEY=\${PASSWORD}
+export NOVA_URL=\${OS_AUTH_URL}
+export NOVA_VERSION=1.1
+export NOVA_REGION_NAME=\${REGION}
+
+# EUCA2OOLS
+export EC2_ACCESS_KEY=\${USERNAME}
+export EC2_SECRET_KEY=\${PASSWORD}
+export EC2_URL=http://127.0.0.1:8773/services/Cloud
+EOF
+
+source openrc
+
+# do a test auth
+curl http://127.0.0.1:5000/v2.0/tokens -H "content-type: application/json" --data '{ "auth": { "passwordCredentials": { "username": "myuser", "password": "mypassword" }}}' | python -m json.tool
+

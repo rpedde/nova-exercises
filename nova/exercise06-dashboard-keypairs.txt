@@ -1,0 +1,8 @@
+1. Login to the User Dashboard
+2. Select Keypairs from the left hand menu
+3. Click the "Create A Keypair" link in the blue info box
+4. Enter a name for the keypair and click the "Create Keypair" button
+5. Check your browser downloads for the private key (*.pem file)
+6. Upload the *.pem file to your lab node (WinSCP or scp <name of  your pem file>.pem nova@<your lab node ip address>:/home/nova)
+7. chmod 600 /home/nova/<name of your pem file>.pem
+8. ssh <ip address of your instance> -i /home/nova/<name of your pem file>.pem

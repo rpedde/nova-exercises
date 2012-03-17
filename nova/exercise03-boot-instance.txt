@@ -1,0 +1,16 @@
+# Problem? "You must provide a username, eithervia --username or via env[NOVA_USERNAME]"
+# Solution = Make sure you have sourced your baschrc file 
+# by using the following command
+# . ~/.bashrc
+
+# Use the Nova CLI to boot an instance based on our SimpleImage
+nova boot --flavor 1 --image 3 myFirstInstance
+# List all the instances paying attention to their Status
+nova list
+# Once the instance is active, ping it's ip Address
+ping 10.0.0.3 # Replace with the IP of the instance
+# Use the Nova CLI to delete an instance
+nova delete 1
+# Listing the instance should show that our instance has been deleted
+nova list
+
