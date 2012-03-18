@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# install the console auth and vnc proxy components
+sudo apt-get install nova-novnc nova-vncproxy nova-consoleauth -y --force-yes
+
+# get the ip of local system
+my_ip=$(ip addr show dev br100 | grep 192.168 | awk '{ print $2 }' | cut -d/ -f1)
+
+# add flags for vnc 
+echo "--novncproxy_base_url=http://${my_ip}:6080/vnc_auto.html" | sudo tee -a /etc/nova/nova.conf
+
+# restart services
+sudo /etc/init.d/nova-compute restart
+
+
+
