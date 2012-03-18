@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Problem? "You must provide a username, eithervia --username or via env[NOVA_USERNAME]"
+# Solution = Make sure you have sourced your openrc file
+# by using the following command
+# . ~/openrc
+
+# Create a one gigabyte volume
+nova volume-create --display_name myFirstVolume --display_description "test volume" 1
+
+# List all the volumes paying attention to their Status
+nova volume-list
+
+# Attach to server
+# nova volume-attach <instance_id> <volume_id> /dev/vdb # replace with ids from above
+
+# Verify that the volume is marked as attached
+nova volume-list
+
+# Log into the instance and verify the volume exists
+
+# Detach volume
+# nova volume-detach <instance_id> <volume_id> # replace with ids from above
+
+# Delete volume
+# nova volume-delete <volume_id> # replace with ids from above
