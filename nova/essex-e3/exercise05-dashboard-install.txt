@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # install apache2 + wsgi and the openstack dashboard
-sudo apt-get install -y libapache2-mod-wsgi openstack-dashboard --force-yes
+sudo apt-get install -y libapache2-mod-wsgi openstack-dashboard django-openstack --force-yes
 
 # enable mod_rewrite and mod_wsgi
 sudo a2enmod rewrite
