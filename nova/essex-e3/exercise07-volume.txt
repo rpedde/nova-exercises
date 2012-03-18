@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# install iscsi driver and lvm
+sudo apt-get install tgt lvm2 -y
+
+# make a volume for lvm
+sudo pvcreate /dev/sda6
+sudo vgcreate nova-volumes /dev/sda6
+
+sudo stop tgt
+sudo start tgt
+
+# add nova settings for volume
+echo "--iscsi_helper=tgtadm" | sudo tee -a /etc/nova/nova.conf
+
+sudo apt-get install nova-volume -y --force-yes
+
