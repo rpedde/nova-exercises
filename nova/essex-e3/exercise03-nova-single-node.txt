@@ -19,12 +19,12 @@ echo -e "\n--network_manager=nova.network.manager.FlatDHCPManager\n" | sudo tee 
 
 # Set up networking
 sudo nova-manage network create --label=private --fixed_range_v4=10.0.${octet}.0/24 --bridge=br100
-sudo killall dnsmasq 
+sudo killall dnsmasq
 sudo service nova-network restart
 
 # Edit /etc/nova/api-paste.ini to use the keystone pipline
-sudo sed -i 's_\(^pipeline.*authtoken.*\)_# \1_' /etc/nova/api-paste.ini 
-sudo sed -i 's_^# \(pipeline.*keystonecontext.*\)_\1_' /etc/nova/api-paste.ini
+sudo sed -i 's_\(^pipeline.*noauth.*\)_# \1_' /etc/nova/api-paste.ini
+sudo sed -i 's_^# \(pipeline.*keystone.*\)_\1_' /etc/nova/api-paste.ini
 
 # Edit /etc/nova/api-paste.ini to use the keystone long-lived token
 sudo sed -i 's#^admin_token.*#admin_token = 999888777666#' /etc/nova/api-paste.ini
